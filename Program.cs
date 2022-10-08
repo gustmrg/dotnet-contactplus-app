@@ -23,6 +23,7 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.R
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddScoped<IImageService, ImageService>();
+builder.Services.AddScoped<IAddressBookService, AddressBookService>();
 
 var app = builder.Build();
 

@@ -16,20 +16,54 @@ namespace ContactPlus.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IImageService _imageService;
+        private readonly IAddressBookService _addressBookService;
 
-        public ContactsController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IImageService imageService)
+        public ContactsController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IImageService imageService, IAddressBookService addressBookService)
         {
             _context = context;
             _userManager = userManager;
             _imageService = imageService;
+            _addressBookService = addressBookService;
         }
 
         // GET: Contacts
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int categoryId)
         {
-              return _context.Contacts != null ? 
-                          View(await _context.Contacts.ToListAsync()) :
-                          Problem("Entity set 'ApplicationDbContext.Contacts'  is null.");
+            var contacts = new List<Contact>();
+            var userId = _userManager.GetUserId(User);
+
+            // return the UserId and its associated contacts and categories
+            var user = await _context.Users
+                .Include(c => c.Contacts)
+                .ThenInclude(c => c.Categories)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            var categories = _context.Categories.Where(u => u.UserId == userId);
+
+            if (categoryId == 0)
+            {
+                contacts = await _context.Contacts
+                .Where(u => u.UserId == userId)
+                .OrderBy(c => c.FirstName)
+                .ThenBy(c => c.LastName)
+                .ToListAsync();
+            }
+            else
+            {
+                // not working
+                contacts = _context.Categories
+                    .FirstOrDefault(c => c.Id == categoryId)
+                    .Contacts
+                    .OrderBy(c => c.FirstName)
+                    .ThenBy(c => c.LastName)
+                    .ToList();
+            }
+            
+
+            ViewData["CategoryId"] = new SelectList(categories, "Id", "Name", categoryId);
+
+
+            return View(contacts);
         }
 
         // GET: Contacts/Details/5
@@ -51,10 +85,11 @@ namespace ContactPlus.Controllers
         }
 
         // GET: Contacts/Create
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            ViewData["UserId"] = new SelectList(_context.Users, "Id", "Id");
+            var userId = _userManager.GetUserId(User);
             ViewData["StatesList"] = new SelectList(Enum.GetValues(typeof(States)).Cast<States>().ToList());
+            ViewData["CategoryList"] = new MultiSelectList(await _addressBookService.GetUserCategoriesAsync(userId), "Id", "Name");
 
             return View();
         }
@@ -64,7 +99,7 @@ namespace ContactPlus.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,FirstName,LastName,BirthDate,Address1,Address2,City,State,CEP,Email,PhoneNumber,ImageFile")] Contact contact)
+        public async Task<IActionResult> Create([Bind("Id,FirstName,LastName,BirthDate,Address1,Address2,City,State,CEP,Email,PhoneNumber,ImageFile")] Contact contact, List<int> CategoryList)
         {
             ModelState.Remove("UserId");
 
@@ -86,6 +121,16 @@ namespace ContactPlus.Controllers
 
                 _context.Add(contact);
                 await _context.SaveChangesAsync();
+
+                // Loop over all the selected categories
+                foreach (int categoryId in CategoryList)
+                {
+                    await _addressBookService.AddContactToCategoryAsync(categoryId, contact.Id);
+                }
+
+                // Save each category selected to the ContactCategory table
+
+
                 return RedirectToAction(nameof(Index));
             }
             return View(contact);

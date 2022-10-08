@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Identity;
@@ -7,10 +9,6 @@ namespace ContactPlus.Models
 {
     public class ApplicationUser : IdentityUser
     {
-        public ApplicationUser()
-        {
-        }
-
         [Required]
         [Display(Name = "First Name")]
         [StringLength(50, ErrorMessage = "The {0} must be at least {2} and a max {1} characters long.", MinimumLength = 2)]
@@ -24,6 +22,9 @@ namespace ContactPlus.Models
         [NotMapped]
         public string FullName { get { return $"{FirstName} {LastName}"; } }
 
+        public virtual ICollection<Contact> Contacts { get; set; } = new HashSet<Contact>();
+
+        public virtual ICollection<Category> Categories { get; set; } = new HashSet<Category>();
     }
 }
 

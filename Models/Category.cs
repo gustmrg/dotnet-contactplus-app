@@ -14,7 +14,7 @@ namespace ContactPlus.Models
         [Display(Name = "Category Name")]
         public string Name { get; set; } = string.Empty;
 
-        public virtual ApplicationUser ApplicationUser { get; set; } = null!;
+        public virtual ApplicationUser? ApplicationUser { get; set; }
         public ICollection<Contact> Contacts { get; set; } = new HashSet<Contact>();
     }
 }
